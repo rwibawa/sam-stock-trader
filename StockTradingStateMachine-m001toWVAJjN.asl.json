@@ -1,0 +1,97 @@
+{
+    "Comment": "A state machine that does mock stock trading.",
+    "StartAt": "Check Stock Value",
+    "States": {
+        "Check Stock Value": {
+            "Type": "Task",
+            "Resource": "arn:aws:lambda:us-west-1:450837389776:function:sam-stock-trader-StockCheckerFunction-iVScwQ0XHRRM",
+            "Retry": [
+                {
+                    "ErrorEquals": [
+                        "States.TaskFailed"
+                    ],
+                    "IntervalSeconds": 15,
+                    "MaxAttempts": 5,
+                    "BackoffRate": 1.5
+                }
+            ],
+            "Next": "Buy or Sell?"
+        },
+        "Buy or Sell?": {
+            "Type": "Choice",
+            "Choices": [
+                {
+                    "Variable": "$.stock_price",
+                    "NumericLessThanEquals": 50,
+                    "Next": "Buy Stock"
+                }
+            ],
+            "Default": "Sell Stock"
+        },
+        "Sell Stock": {
+            "Type": "Task",
+            "Resource": "arn:aws:lambda:us-west-1:450837389776:function:sam-stock-trader-StockSellerFunction-fCbSvSEHcyOZ",
+            "Retry": [
+                {
+                    "ErrorEquals": [
+                        "States.TaskFailed"
+                    ],
+                    "IntervalSeconds": 2,
+                    "MaxAttempts": 3,
+                    "BackoffRate": 1
+                }
+            ],
+            "Next": "Record Transaction"
+        },
+        "Buy Stock": {
+            "Type": "Task",
+            "Resource": "arn:aws:lambda:us-west-1:450837389776:function:sam-stock-trader-StockBuyerFunction-pUM4fJzHoYSD",
+            "Retry": [
+                {
+                    "ErrorEquals": [
+                        "States.TaskFailed"
+                    ],
+                    "IntervalSeconds": 2,
+                    "MaxAttempts": 3,
+                    "BackoffRate": 1
+                }
+            ],
+            "Next": "Record Transaction"
+        },
+        "Record Transaction": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::dynamodb:putItem",
+            "Parameters": {
+                "TableName": "sam-stock-trader-TransactionTable-DFI5ZEZ8KZKE",
+                "Item": {
+                    "Id": {
+                        "S.$": "$.id"
+                    },
+                    "Type": {
+                        "S.$": "$.type"
+                    },
+                    "Price": {
+                        "N.$": "$.price"
+                    },
+                    "Quantity": {
+                        "N.$": "$.qty"
+                    },
+                    "Timestamp": {
+                        "S.$": "$.timestamp"
+                    }
+                }
+            },
+            "Retry": [
+                {
+                    "ErrorEquals": [
+                        "States.TaskFailed"
+                    ],
+                    "IntervalSeconds": 20,
+                    "MaxAttempts": 5,
+                    "BackoffRate": 10
+                }
+            ],
+            "End": true
+        }
+    }
+}
